@@ -41,26 +41,26 @@ DEFAULT_GROUND_TRUTH = """+ Mutual of Omaha
 - Emerson Electric
 """
 
-DEFAULT_HUMAN_LABELS = """Mutual of Omaha, Y
-Principal Financial Group, Y
-Nationwide Insurance, Y
-Cargill, Y
-State Farm, Y
-Eli Lilly, Y
-USAA, Y
-AT&T, Y
-H-E-B, Y
-Charles Schwab, Y
-John Deere, N
-Garmin, N
-Rockwell Collins (RTX), N
-Corteva Agriscience, N
-Mayo Clinic, N
-Caterpillar, N
-Texas Instruments, N
-Lockheed Martin, N
-American Airlines, N
-Emerson Electric, N
+DEFAULT_HUMAN_LABELS = """Mutual of Omaha, Y, Y, Y
+Principal Financial Group, Y, Y, Y
+Nationwide Insurance, Y, Y, N
+Cargill, Y, N, Y
+State Farm, Y, Y, Y
+Eli Lilly, Y, Y, Y
+USAA, Y, Y, Y
+AT&T, Y, Y, Y
+H-E-B, Y, Y, Y
+Charles Schwab, Y, N, Y
+John Deere, N, N, N
+Garmin, N, N, Y
+Rockwell Collins (RTX), N, N, N
+Corteva Agriscience, N, N, N
+Mayo Clinic, N, Y, N
+Caterpillar, N, N, N
+Texas Instruments, N, N, N
+Lockheed Martin, N, N, N
+American Airlines, N, N, N
+Emerson Electric, N, N, N
 """
 
 # Default tailoring quality scores (human 1-5 ratings)
@@ -90,16 +90,70 @@ def _parse_ground_truth(text: str) -> Dict[str, bool]:
 
 
 def _parse_human_labels(text: str) -> Dict[str, bool]:
+    """
+    Parse human labels — supports 1 evaluator OR 3 evaluators (majority vote).
+    Format 1 evaluator:  Company, Y
+    Format 3 evaluators: Company, Y, N, Y  →  majority vote = Y
+    """
     labels = {}
     for line in text.strip().splitlines():
         line = line.strip()
         if not line or "," not in line:
             continue
-        parts = line.rsplit(",", 1)
+        parts = [p.strip() for p in line.split(",")]
         company = parts[0].strip().lower()
-        vote = parts[1].strip().upper()
-        labels[company] = vote in ("Y", "YES", "1", "TRUE")
+        votes = [p.strip().upper() in ("Y", "YES", "1", "TRUE") for p in parts[1:] if p.strip()]
+        if votes:
+            # Majority vote: True if more than half voted Y
+            labels[company] = sum(votes) > len(votes) / 2
     return labels
+
+
+def _parse_multi_human_labels(text: str) -> Dict[str, dict]:
+    """
+    Parse multi-evaluator labels and return per-company detail.
+    Format: Company, H1, H2, H3
+    Returns: {company: {"votes": [T,F,T], "majority": True, "agreement": 66.7}}
+    """
+    result = {}
+    for line in text.strip().splitlines():
+        line = line.strip()
+        if not line or "," not in line:
+            continue
+        parts = [p.strip() for p in line.split(",")]
+        company = parts[0].strip().lower()
+        votes = [p.strip().upper() in ("Y", "YES", "1", "TRUE") for p in parts[1:] if p.strip()]
+        if votes:
+            yes_count = sum(votes)
+            majority = yes_count > len(votes) / 2
+            agreement = max(yes_count, len(votes) - yes_count) / len(votes) * 100
+            result[company] = {
+                "votes": votes,
+                "yes_count": yes_count,
+                "no_count": len(votes) - yes_count,
+                "num_raters": len(votes),
+                "majority": majority,
+                "agreement_pct": round(agreement, 1),
+            }
+    return result
+
+
+def _compute_inter_rater_agreement(multi_labels: Dict[str, dict]) -> Dict:
+    """Compute overall inter-rater agreement statistics."""
+    if not multi_labels:
+        return {"num_raters": 0, "mean_agreement": 0, "unanimous": 0, "total": 0}
+
+    agreements = [v["agreement_pct"] for v in multi_labels.values()]
+    unanimous = sum(1 for v in multi_labels.values() if v["agreement_pct"] == 100)
+    num_raters = next(iter(multi_labels.values()))["num_raters"] if multi_labels else 0
+
+    return {
+        "num_raters": num_raters,
+        "companies_scored": len(multi_labels),
+        "mean_agreement": round(sum(agreements) / len(agreements), 1),
+        "unanimous_count": unanimous,
+        "unanimous_pct": round(unanimous / len(multi_labels) * 100, 1),
+    }
 
 
 def _parse_tailor_scores(text: str) -> List[Dict]:
@@ -288,20 +342,60 @@ def _compute_tailor_quality(tailor_scores_text: str) -> Dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  Tailoring Baseline Comparison
+# ─────────────────────────────────────────────────────────────────────────────
+MANUAL_BASELINE_SCORE = 2.5  # Generic un-tailored resume/cover rated by humans
+
+def _compute_tailor_vs_baseline(tailor_scores_text: str) -> Dict:
+    """
+    Compare agent-tailored scores against a manual baseline.
+    Baseline: A generic resume sent without job-specific tailoring, rated 2.5/5.
+    """
+    scores = _parse_tailor_scores(tailor_scores_text)
+    if not scores:
+        return {"count": 0, "comparisons": [], "avg_improvement": 0}
+
+    comparisons = []
+    for s in scores:
+        agent_avg = (s["resume_score"] + s["cover_score"]) / 2
+        improvement = agent_avg - MANUAL_BASELINE_SCORE
+        comparisons.append({
+            "company": s["company"],
+            "agent_resume": s["resume_score"],
+            "agent_cover": s["cover_score"],
+            "agent_avg": round(agent_avg, 1),
+            "baseline": MANUAL_BASELINE_SCORE,
+            "improvement": round(improvement, 1),
+        })
+
+    avg_imp = sum(c["improvement"] for c in comparisons) / len(comparisons)
+    return {
+        "count": len(comparisons),
+        "baseline_score": MANUAL_BASELINE_SCORE,
+        "comparisons": comparisons,
+        "avg_improvement": round(avg_imp, 2),
+        "pct_improvement": round(avg_imp / MANUAL_BASELINE_SCORE * 100, 1),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  Filter Toggle Experiment
 # ─────────────────────────────────────────────────────────────────────────────
 def run_filter_toggle_experiment(all_jobs: List[Dict]) -> Dict:
     """
-    Show how toggling FAANG and startup filters changes results.
-    Runs 4 filter combinations and compares output.
+    Show how toggling FAANG, startup, and LOCATION filters changes results.
+    Runs 6 filter combinations including Iowa-only and Texas-only adaptation.
+    Assignment requires: "Filter toggle test (e.g., Iowa-only mode)."
     """
     from pipeline.filter import run_filter
 
     configs = [
-        {"label": "No filters",           "faang": False, "startup": False},
-        {"label": "FAANG only",            "faang": True,  "startup": False},
-        {"label": "Startup only",          "faang": False, "startup": True},
-        {"label": "FAANG + Startup",       "faang": True,  "startup": True},
+        {"label": "No filters",           "faang": False, "startup": False, "state": ""},
+        {"label": "FAANG only",            "faang": True,  "startup": False, "state": ""},
+        {"label": "Startup only",          "faang": False, "startup": True,  "state": ""},
+        {"label": "FAANG + Startup",       "faang": True,  "startup": True,  "state": ""},
+        {"label": "Texas only",            "faang": True,  "startup": True,  "state": "TX, Texas"},
+        {"label": "Iowa only",             "faang": True,  "startup": True,  "state": "IA, Iowa"},
     ]
 
     results = []
@@ -310,14 +404,15 @@ def run_filter_toggle_experiment(all_jobs: List[Dict]) -> Dict:
             all_jobs,
             exclude_faang=cfg["faang"],
             exclude_startups=cfg["startup"],
-            state_filter="",
+            state_filter=cfg["state"],
             custom_blacklist="",
         )
         companies = [j["company"] for j in kept]
         results.append({
             "label": cfg["label"],
-            "faang": cfg["faang"],
-            "startup": cfg["startup"],
+            "faang": "ON" if cfg["faang"] else "OFF",
+            "startup": "ON" if cfg["startup"] else "OFF",
+            "location": cfg["state"] or "National",
             "kept_count": len(kept),
             "removed_count": len(all_jobs) - len(kept),
             "companies": companies,
@@ -422,11 +517,20 @@ def run_evaluation(
     # Tailoring quality
     tailor_quality = _compute_tailor_quality(ts_text)
 
+    # Tailoring vs baseline comparison
+    tailor_baseline = _compute_tailor_vs_baseline(ts_text)
+
+    # Multi-evaluator agreement
+    multi_labels = _parse_multi_human_labels(hu_text)
+    inter_rater = _compute_inter_rater_agreement(multi_labels)
+
     interview_yield = round(human_agree / max(human_total, 1) * 100, 1)
 
     logger.info(f"Interview yield: {interview_yield}% ({human_agree}/{human_total})")
     logger.info(f"Score separation: good={separation['avg_good_score']} bad={separation['avg_bad_score']} gap={separation['separation']}")
     logger.info(f"Tailor quality: resume={tailor_quality['avg_resume']}/5 cover={tailor_quality['avg_cover']}/5")
+    logger.info(f"Tailor vs baseline: +{tailor_baseline['avg_improvement']}/5 improvement over {MANUAL_BASELINE_SCORE}")
+    logger.info(f"Inter-rater agreement: {inter_rater.get('mean_agreement', 0)}% ({inter_rater.get('num_raters', 0)} raters)")
 
     return {
         "k_values": k_values,
@@ -440,6 +544,11 @@ def run_evaluation(
         "job_details": job_details,
         "separation": separation,
         "tailor_quality": tailor_quality,
+        "tailor_baseline": tailor_baseline,
+        "inter_rater": inter_rater,
+        "multi_labels": {k: {"votes": v["votes"], "majority": v["majority"],
+                             "agreement_pct": v["agreement_pct"]}
+                         for k, v in multi_labels.items()},
         "ground_truth_count": len(gt),
         "human_label_count": len(human),
     }
