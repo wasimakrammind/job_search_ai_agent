@@ -133,8 +133,8 @@ middle-america-job-agent/
 
 | Role | Member | Primary Deliverables | TA Verification |
 |------|--------|---------------------|----------------|
-| Product Lead | Gopi Trinath | Requirements doc, sample resume, constraint definitions | Resume realistic (3-5yr AI Eng)? Constraints enforced? |
 | Agent Architect | Wasim Akram | Pipeline design, architecture diagram, integration plan | Architecture matches code? Separation of concerns? |
+| Product Lead | Gopi Trinath | Requirements doc, sample resume, constraint definitions | Resume realistic (3-5yr AI Eng)? Constraints enforced? |
 | Web Engineer | Damini | SerpAPI integration, data extraction, parsing | Reliably captures title, company, location, skills, salary, URL? |
 | LLM Engineer | Josna | Ranking logic, tailoring prompts, personalization | Ranking criteria applied correctly? Tailored docs differentiated? |
 | Eval Lead | Ujwal | 20-job benchmark, metrics computation, bias analysis | Benchmark sound (20 jobs)? P@10 correct? Bias section substantive? |
