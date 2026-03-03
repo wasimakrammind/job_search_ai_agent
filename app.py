@@ -249,20 +249,20 @@ with st.sidebar:
     model = st.selectbox("LLM Model", OPENROUTER_MODELS,
                          index=OPENROUTER_MODELS.index(S.llm_model)
                          if S.llm_model in OPENROUTER_MODELS else 0)
-    if st.button("💾 Save", use_container_width=True):
+    if st.button(" Save", use_container_width=True):
         S.serpapi_key = sk.strip(); S.openrouter_key = ok.strip(); S.llm_model = model
         logger.info(f"Settings saved. Model={model}")
-        st.success("✅ Saved!")
+        st.success(" Saved!")
 
     st.divider()
-    st.markdown("## 📋 Quick Stats")
+    st.markdown("## Quick Stats")
     st.markdown(f"**Jobs found:** {len(S.raw_jobs)}")
     st.markdown(f"**After filter:** {len(S.filtered_jobs)}")
     st.markdown(f"**Ranked:** {len(S.ranked_jobs)}")
     st.markdown(f"**Tailored:** {len(S.tailored_outputs)}")
 
     st.divider()
-    st.markdown("## 📥 Export")
+    st.markdown("## Export")
     if S.ranked_jobs:
         data = {
             "model": S.llm_model,
@@ -271,10 +271,10 @@ with st.sidebar:
                 "skills":j.get("matched_skills",[])} for j in S.ranked_jobs],
             "tailored": S.tailored_outputs,
         }
-        st.download_button("📥 JSON", json.dumps(data, indent=2),
+        st.download_button("JSON", json.dumps(data, indent=2),
                            "results.json", "application/json", use_container_width=True)
     if LOG_BUFFER:
-        st.download_button("📋 Agent Log", export_log(), "agent_trace.txt",
+        st.download_button("Agent Log", export_log(), "agent_trace.txt",
                            "text/plain", use_container_width=True)
 
 
@@ -310,7 +310,7 @@ active_idx = next((i for i, (_, d) in enumerate(steps_status) if not d), len(ste
 progress_html = '<div class="progress-bar"><div class="progress-steps">'
 for i, (label, done) in enumerate(steps_status):
     cls = _step_class(done, i == active_idx)
-    icon = "✅" if done else ("▶" if i == active_idx else "○")
+    icon = "" if done else ("▶" if i == active_idx else "○")
     progress_html += f'<div class="p-step {cls}">{icon} {label}</div>'
     if i < len(steps_status) - 1:
         line_cls = "p-line-done" if done else "p-line-pending"
@@ -329,7 +329,7 @@ if S.search_done and S.filter_done:
     st.markdown(f"""
     <div class="step-header">
         <div class="step-num step-num-done">1</div>
-        <h3 style="margin:0">🔍 Search — ✅ {len(S.raw_jobs)} jobs found</h3>
+        <h3 style="margin:0">🔍 Search — {len(S.raw_jobs)} jobs found</h3>
     </div>""", unsafe_allow_html=True)
     with st.expander("View search results", expanded=False):
         if S.search_df is not None:
@@ -395,7 +395,7 @@ if not S.search_done:
         <div class="step-num step-num-locked">2</div>
         <h3 style="margin:0; color:#94a3b8 !important">🧹 Filter — waiting for Search</h3>
     </div>""", unsafe_allow_html=True)
-    st.markdown('<div class="st-locked">🔒 Complete Search first.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="st-locked"> Complete Search first.</div>', unsafe_allow_html=True)
 
 elif S.filter_done and S.rank_done:
     # Collapsed
@@ -403,7 +403,7 @@ elif S.filter_done and S.rank_done:
     st.markdown(f"""
     <div class="step-header">
         <div class="step-num step-num-done">2</div>
-        <h3 style="margin:0">🧹 Filter — ✅ {kept} kept, {removed} removed</h3>
+        <h3 style="margin:0">🧹 Filter —  {kept} kept, {removed} removed</h3>
     </div>""", unsafe_allow_html=True)
     with st.expander("View filtered results", expanded=False):
         if S.filter_df is not None:
@@ -528,7 +528,7 @@ else:
             S.ranked_jobs = top; S.rank_done = True; S.rank_df = df
             S.tailored_outputs = []; S.tailor_done = False
 
-        st.markdown(f'<div class="st-success">✅ Top <b>{len(top)}</b> ranked. '
+        st.markdown(f'<div class="st-success"> Top <b>{len(top)}</b> ranked. '
                     f'Scroll down to <b>Tailor</b>.</div>', unsafe_allow_html=True)
 
         if top:
@@ -587,7 +587,7 @@ else:
                     'Free → <a href="https://openrouter.ai/keys">openrouter.ai/keys</a></div>',
                     unsafe_allow_html=True)
     else:
-        with st.expander("📄 Base Resume *(click to edit)*", expanded=False):
+        with st.expander(" Base Resume *(click to edit)*", expanded=False):
             resume = st.text_area("r", SAMPLE_RESUME, height=400,
                                   label_visibility="collapsed", key="tr")
 
@@ -614,9 +614,9 @@ else:
                         "tailored_resume":f"[ERROR: {e}]","cover_letter":f"[ERROR: {e}]",
                         "composite_score":job.get("composite_score",0)})
 
-            bar.progress(1.0, "✅ Done!")
+            bar.progress(1.0, " Done!")
             S.tailored_outputs = outputs; S.tailor_done = True
-            st.markdown(f'<div class="st-success">✅ <b>{len(outputs)}</b> applications generated!</div>',
+            st.markdown(f'<div class="st-success"> <b>{len(outputs)}</b> applications generated!</div>',
                         unsafe_allow_html=True)
 
         # Display outputs
@@ -892,18 +892,18 @@ with st.expander("📈 Hiring Simulation Evaluation", expanded=True):
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
             best_k = max(ev["ks"], key=lambda k: ev["m"][k]["f1"])
             bm = ev["m"][best_k]
-            st.markdown(f'<div class="st-success">🏆 Best F1 at <b>K={best_k}</b>: '
+            st.markdown(f'<div class="st-success"> Best F1 at <b>K={best_k}</b>: '
                 f'P={bm["p"]}% R={bm["r"]}% <b>F1={bm["f1"]}%</b> NDCG={bm["ndcg"]}%</div>',
                 unsafe_allow_html=True)
 
             st.markdown("---")
-            st.markdown(f"#### 🧮 Confusion Matrix (K={best_k})")
+            st.markdown(f"####  Confusion Matrix (K={best_k})")
             c1, c2 = st.columns(2)
             with c1:
                 with st.container(border=True):
                     st.markdown(f"**✅ TP: {bm['tp']}** — Agent picked AND deserves interview")
                 with st.container(border=True):
-                    st.markdown(f"**😞 FN: {bm['fn']}** — Deserves interview BUT agent missed")
+                    st.markdown(f"** FN: {bm['fn']}** — Deserves interview BUT agent missed")
             with c2:
                 with st.container(border=True):
                     st.markdown(f"**⚠️ FP: {bm['fp']}** — Agent picked BUT doesn't deserve")
@@ -911,14 +911,14 @@ with st.expander("📈 Hiring Simulation Evaluation", expanded=True):
                     st.markdown(f"**🚫 TN: {bm['tn']}** — Doesn't deserve AND agent skipped")
 
             st.markdown("---")
-            st.markdown("#### 📐 Score Separation")
+            st.markdown("#### Score Separation")
             m1, m2, m3 = st.columns(3)
             m1.metric("Avg Good", ev["ag"])
             m2.metric("Avg Bad", ev["ab"])
             m3.metric("Gap", f"{ev['gap']:+.1f}", delta="Good" if ev["gap"] > 5 else "Weak")
 
             st.markdown("---")
-            st.markdown("#### ✍️ Tailoring Quality (Human 1-5) vs Manual Baseline")
+            st.markdown("#### Tailoring Quality (Human 1-5) vs Manual Baseline")
             if ev["ts"]:
                 baseline = ev.get("tailor_baseline", {})
                 baseline_score = baseline.get("baseline_score", 2.5)
@@ -932,7 +932,7 @@ with st.expander("📈 Hiring Simulation Evaluation", expanded=True):
                 st.caption("Baseline = generic un-tailored resume/cover letter rated 2.5/5 by evaluators.")
 
             st.markdown("---")
-            st.markdown("#### 🔬 Filter Toggle Experiment (incl. Location Adaptation)")
+            st.markdown("#### Filter Toggle Experiment (incl. Location Adaptation)")
             st.caption("Tests FAANG/Startup toggles AND location filters (Texas-only, Iowa-only).")
             if S.search_done and st.button("Run Filter Experiment", key="fe_btn"):
                 cfgs = [
@@ -968,4 +968,4 @@ with st.expander("📋 Agent Decision Log", expanded=False):
     else:
         st.info("No log entries yet. Run the pipeline to generate logs.")
     st.caption(f"{len(LOG_BUFFER)} entries")
-    st.download_button("📥 Download Log", export_log(), "agent_trace.txt", "text/plain")
+    st.download_button("Download Log", export_log(), "agent_trace.txt", "text/plain")
