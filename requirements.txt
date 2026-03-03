@@ -1,0 +1,20 @@
+# Middle America Job & Application Agent
+# Python 3.10+
+
+# --- UI ---
+streamlit>=1.40.0
+
+# --- API calls (sync, lightweight) ---
+requests>=2.31.0
+
+# --- Job search ---
+google-search-results>=2.4.2    # SerpAPI wrapper
+
+# --- Data handling ---
+pandas>=2.0.0
+
+# --- Environment variables ---
+python-dotenv>=1.0.0
+
+# --- Optional: export/report ---
+# fpdf2>=2.7.0                  # if you want PDF export later
