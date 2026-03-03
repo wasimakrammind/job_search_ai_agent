@@ -29,7 +29,7 @@ from pipeline.ethics import run_ethics_analysis
 # ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Middle America Job Agent",
-    page_icon="🏢",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded",
 )
